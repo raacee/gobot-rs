@@ -1,4 +1,4 @@
-use players::player::Human;
+use players::human::Human;
 use crate::stones::{BLACK_STONE, WHITE_STONE};
 use std::collections::VecDeque;
 use std::rc::Rc;

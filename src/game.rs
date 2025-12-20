@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{Display, Error, Formatter};
 use std::rc::Rc;
 use crate::board::{Board, BoardCoordsIterator, BoardSideLength};
-use crate::players::player::{Human, Player};
+use crate::players::player::Player;
 use crate::signals::*;
 use crate::stones::{
     Stone, BLACK_STONE, BLACK_STONE_CHAR, EMPTY, EMPTY_CHAR, WHITE_STONE, WHITE_STONE_CHAR,
