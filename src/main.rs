@@ -1,6 +1,5 @@
 use players::human::Human;
 use crate::stones::{BLACK_STONE, WHITE_STONE};
-use std::collections::VecDeque;
 use std::rc::Rc;
 use crate::players::player::Player;
 
@@ -17,11 +16,13 @@ fn main() {
     let black_player = Box::new(black_human);
     let white_player = Box::new(white_human);
     let players: [Rc<Box<dyn Player>>; 2] = [Rc::new(black_player), Rc::new(white_player)];
-    let game = game::Game::new(
+    let mut game = game::Game::new(
         9,
         false,
         players,
         true,
         false,
         7.5);
+
+    game.game()
 }

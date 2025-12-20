@@ -36,11 +36,11 @@ impl<'a> Player for Human<'a> {
                 match player_choice.len() {
                     0 => None,
                     2 => {
-                        let mut coords: (usize, usize) = (0, 0);
+
                         let player_choice_coords: Vec<usize> = player_choice
                             .into_iter()
                             .map(|c| c.parse::<usize>().unwrap()).collect();
-                        (coords.0, coords.1) = (player_choice_coords[0], player_choice_coords[1]);
+                        let coords= (player_choice_coords[0], player_choice_coords[1]);
                         Some(coords)
                     }
                     _ => panic!("You must provide a valid move")
