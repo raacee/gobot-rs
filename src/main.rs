@@ -1,19 +1,22 @@
-use crate::board::Board;
-use crate::player::Human;
+use players::player::Human;
 use crate::stones::{BLACK_STONE, WHITE_STONE};
-use std::collections::{VecDeque};
+use std::collections::VecDeque;
+use std::rc::Rc;
+use crate::players::player::Player;
 
 mod board;
 mod game;
-mod player;
 mod stones;
 mod signals;
-mod bot;
+mod mcts;
+mod players;
 
 fn main() {
-    let black_player = Human::new(BLACK_STONE);
-    let white_player = Human::new(WHITE_STONE);
-    let players: VecDeque<&Human> = [&black_player, &white_player].into();
+    let black_human = Human::new(&BLACK_STONE);
+    let white_human = Human::new(&WHITE_STONE);
+    let black_player = Box::new(black_human);
+    let white_player = Box::new(white_human);
+    let players: [Rc<Box<dyn Player>>; 2] = [Rc::new(black_player), Rc::new(white_player)];
     let game = game::Game::new(
         9,
         false,

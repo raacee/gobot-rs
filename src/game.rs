@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{Display, Error, Formatter};
+use std::rc::Rc;
 use crate::board::{Board, BoardCoordsIterator, BoardSideLength};
-use crate::player::{Human, Player};
+use crate::players::player::{Human, Player};
 use crate::signals::*;
 use crate::stones::{
     Stone, BLACK_STONE, BLACK_STONE_CHAR, EMPTY, EMPTY_CHAR, WHITE_STONE, WHITE_STONE_CHAR,
@@ -15,22 +16,23 @@ pub type Group<'a> = HashMap<Coordinates, &'a Stone>;
 pub type GroupDict<'a> = HashMap<&'static str, Group<'a>>;
 
 #[derive(Clone)]
-pub struct Game<'a> {
+pub struct Game {
     board_size: BoardSideLength,
     board: Board,
     super_ko: bool,
     last_boards: Vec<Board>,
-    players: VecDeque<&'a Human>,
+    players: [Rc<Box<dyn Player>>; 2],
+    current_player: usize,
     display: bool,
     last_turned_passed: bool,
     komi: f32,
 }
 
-impl<'a> Game<'a> {
+impl Game{
     pub fn new(
         board_size: BoardSideLength,
         super_ko: bool,
-        players: VecDeque<&'a Human>,
+        players:  [Rc<Box<dyn Player>>; 2],
         display: bool,
         last_turned_passed: bool,
         komi: f32,
@@ -43,19 +45,21 @@ impl<'a> Game<'a> {
             super_ko,
             last_boards,
             players,
+            current_player: 0,
             display,
             last_turned_passed,
             komi,
         }
     }
 
-    pub fn new_from_board(
+    pub fn from(
         board_size: BoardSideLength,
         board: Board,
         super_ko: bool,
         last_boards: Vec<Board>,
-        players: VecDeque<&'a Human>,
+        players:  [Rc<Box<dyn Player>>; 2],
         display: bool,
+        current_player: usize,
         last_turned_passed: bool,
         komi: f32,
     ) -> Self {
@@ -65,6 +69,7 @@ impl<'a> Game<'a> {
             super_ko,
             last_boards,
             players,
+            current_player,
             display,
             last_turned_passed,
             komi,
@@ -87,8 +92,8 @@ impl<'a> Game<'a> {
         &self.board
     }
 
-    pub fn get_current_player(&self) -> &Human {
-        *self.players.get(0).unwrap()
+    pub fn get_current_player(&self) -> &Box<dyn Player> {
+        self.players.get(0).unwrap()
     }
 
     fn is_case_occupied(&self, (x, y): Coordinates) -> bool {
@@ -139,7 +144,11 @@ impl<'a> Game<'a> {
                     Err(Signals::DoublePass)
                 } else {
                     self.last_turned_passed = true;
-                    self.players.rotate_left(1);
+                    match self.current_player {
+                        0 => self.current_player = 1,
+                        1 => self.current_player = 0,
+                        _ => panic!("Current player count is outside of bounds"),
+                    }
                     Ok(())
                 }
             }
@@ -264,7 +273,7 @@ impl<'a> Game<'a> {
 
     fn induces_suicide(&self, player_choice: Coordinates) -> bool {
         let mut test_board = self.board.clone();
-        test_board[player_choice] = self.get_current_player().stone;
+        test_board[player_choice] = *self.get_current_player().get_stone();
         let same_stone_group_dicts = Self::flood_fill(player_choice, &test_board, true, false);
         same_stone_group_dicts
             .get("border")
@@ -280,7 +289,7 @@ impl<'a> Game<'a> {
 
     fn induces_capture(&self, player_choice: Coordinates) -> (bool, Option<Board>) {
         let neighbors = Self::neighbors_indices(player_choice, &self.board);
-        let opposite_stone_color = self.get_current_player().stone.unwrap() * -1;
+        let opposite_stone_color = self.get_current_player().get_stone().unwrap() * -1;
         let opposite_stone_neighbors_coords: Vec<Coordinates> = neighbors
             .into_iter()
             .filter(|&coordinates| self.board.get(coordinates).unwrap() == opposite_stone_color)
@@ -330,28 +339,40 @@ impl<'a> Game<'a> {
         todo!()
     }
 
-    fn is_eye(&self, coords:Coordinates) -> bool {
+    fn eye_owner(&self, coords:Coordinates) -> Option<Stone> {
         let neighbors = Self::neighbors_indices(coords, &self.board);
         let neighbors: Vec<Stone> = neighbors.into_iter().map(|neighbor_coord| self.board[neighbor_coord]).collect();
-        return neighbors.iter().all(|neighbor| *neighbor == BLACK_STONE)
-            || neighbors.iter().all(|neighbor| *neighbor == WHITE_STONE);
+        if  neighbors.iter().all(|neighbor| *neighbor == BLACK_STONE) {
+            Some(BLACK_STONE)
+        }
+        else if neighbors.iter().all(|neighbor| *neighbor == WHITE_STONE) {
+            Some(WHITE_STONE)
+        }
+        else {
+            None
+        }
     }
 
-    fn is_alive(&self, coords:Coordinates) -> bool {
+    fn group_owner(&self, coords:Coordinates) -> Option<&Rc<Box<dyn Player>>> {
         let group_dict = Self::flood_fill(coords, &self.board, false, true);
         let group = &group_dict["group"];
         let mut n_eyes: u8 = 0;
         let group_tuples = group.into_iter().map(|coord_and_stone| coord_and_stone);
         for (coord, stone) in group_tuples {
-            if **stone == EMPTY && self.is_eye(*coord) {
+            let is_eye = self.eye_owner(*coord);
+            if **stone == EMPTY && is_eye.is_some() {
                 n_eyes += 1;
                 if n_eyes >= 2 {
-                    return true
+                    let stone = is_eye.unwrap();
+                    let player = self.players.iter().find(|player| {*player.get_stone() == stone});
+                    if player.is_none() {
+                        panic!("No corresponding player found");
+                    }
+                    return player;
                 }
             }
         }
-        false
-
+        None
     }
 
     fn number_stones(&self, s: Stone) -> u8 {
@@ -365,9 +386,22 @@ impl<'a> Game<'a> {
         }
         res
     }
+
+    pub fn available_cases(&self, player: &Box<dyn Player>) -> Vec<Move> {
+        let mut available_cases: Vec<Move> = vec![];
+        for i in 0..self.board_size {
+            for j in 0..self.board_size {
+                if self.eye_owner((i,j)).unwrap() == *player.get_stone() {
+                    available_cases.push(Some((i,j)));
+                }
+            }
+        }
+        available_cases.push(None);
+        available_cases
+    }
 }
 
-impl<'a> Display for Game<'a> {
+impl Display for Game {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         // Print the board
         writeln!(f, "Board ({}x{}):", self.width(), self.height())?;

@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 use crate::stones::{Stone, EMPTY};
 use std::ops::{Index, IndexMut};
+use std::path::Iter;
 use crate::game::Coordinates;
 
 pub type BoardSideLength = usize;
@@ -23,6 +24,7 @@ const BIG_BOARD: [[Stone; BIG]; BIG] =  [[None; BIG]; BIG];
 #[derive(Eq, Hash, PartialEq)]
 pub struct Board {
     pub data:BoardArray,
+    pub board_side_length: BoardSideLength,
     pub shape:BoardSize
 }
 
@@ -38,6 +40,7 @@ impl Board {
         }
         Board {
             data,
+            board_side_length: side_length,
             shape: (side_length, side_length)
         }
     }
@@ -45,8 +48,11 @@ impl Board {
     pub fn get(&self, (x, y): (usize, usize)) -> &Stone {
         &self.data[x][y]
     }
+    
+    pub fn get_board_side_length(&self) -> BoardSideLength {
+        self.board_side_length.clone()
+    }
 }
-
 
 impl Clone for Board {
     fn clone(&self) -> Board {
@@ -61,6 +67,7 @@ impl Clone for Board {
         let new_shape = (self.shape.0, self.shape.1);
         Board {
             data:new_data,
+            board_side_length: self.board_side_length,
             shape: new_shape
         }
     }

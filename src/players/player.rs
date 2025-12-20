@@ -5,24 +5,38 @@ use crate::game::{Coordinates, Move};
 use std::io::stdin;
 
 pub trait Player {
+    fn get_stone(&self) -> &Stone;
+    fn get_name(&self) -> &str {
+        get_stone_name_from_stone(*self.get_stone())
+    }
     fn choose_case(&self, board: &Board) -> Move;
 }
 
-pub struct Human {
-    pub stone: Stone,
+impl Display for dyn Player {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+            write!(f, "{}", self.get_name())
+        }
+}
+
+pub struct Human<'a> {
+    pub stone: &'a Stone,
     pub name: &'static str,
 }
 
-impl Human {
-    pub fn new(stone: Stone) -> Human {
+impl<'a> Human<'a> {
+    pub fn new(stone: &Stone) -> Human {
         Human {
             stone,
-            name: get_stone_name_from_stone(stone),
+            name: get_stone_name_from_stone(*stone),
         }
     }
 }
 
-impl Player for Human {
+impl<'a> Player for Human<'a> {
+    fn get_stone(&self) -> &Stone {
+        self.stone
+    }
+
     fn choose_case(&self, board: &Board) -> Move {
         let mut input = String::new();
         print!("{} player choice", self.name);
@@ -49,13 +63,5 @@ impl Player for Human {
             }
             Err(_) => panic!("Failed to read input"),
         }
-
     }
 }
-
-impl Display for Human {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.name)
-    }
-}
-
