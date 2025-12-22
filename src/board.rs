@@ -56,19 +56,19 @@ impl Board {
 
 impl Clone for Board {
     fn clone(&self) -> Board {
-        let mut new_data: BoardArray = Vec::new();
+        let mut new_data: BoardArray = Vec::with_capacity(self.board_side_length);
         for row in &self.data {
-            let mut new_row: Vec<Stone> = Vec::new();
+            let mut new_row: Vec<Stone> = Vec::with_capacity(self.board_side_length);
             for cell in row {
                 new_row.push(cell.clone());
             }
             new_data.push(new_row)
         }
-        let new_shape = (self.shape.0, self.shape.1);
+
         Board {
             data:new_data,
-            board_side_length: self.board_side_length,
-            shape: new_shape
+            board_side_length: self.board_side_length.clone(),
+            shape: self.shape.clone()
         }
     }
 }

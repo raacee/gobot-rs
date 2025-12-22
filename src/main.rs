@@ -11,8 +11,8 @@ mod mcts;
 mod players;
 
 fn main() {
-    let black_human = Human::new(&BLACK_STONE);
-    let white_human = Human::new(&WHITE_STONE);
+    let black_human = Human::new(BLACK_STONE);
+    let white_human = Human::new(WHITE_STONE);
     let black_player = Box::new(black_human);
     let white_player = Box::new(white_human);
     let players: [Rc<Box<dyn Player>>; 2] = [Rc::new(black_player), Rc::new(white_player)];

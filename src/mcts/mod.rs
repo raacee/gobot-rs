@@ -24,8 +24,9 @@ impl Node {
         }
     }
 
-    fn expand(&self) {
-
+    fn expand(&mut self) {
+        let random_child = self.generate_random_child();
+        self.children.push(random_child);
     }
 
     fn generate_random_choice(&self) -> Move {

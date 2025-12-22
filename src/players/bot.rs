@@ -10,8 +10,7 @@ pub struct Bot {
 
 impl Bot {
     /*
-        With area scoring, the bots should continue playing,
-        unless playing leads to a situation where a group loses an eye
+        With area scoring, the bots should continue playing unless playing leads to a situation where a group loses an eye
         In that case, the bot should pass
         So, the bots consolidate their position unless they lose an alive group if they play any move
 
@@ -19,6 +18,8 @@ impl Bot {
 
         We can use the calculate_scores function as a heuristic to find
         if any move leads to a losing situation
+
+        If previous player has passed and the bot has a better score than the player, the bot should pass to win the game
     */
     fn next_best_move(&self, board: &Board) -> Move {
         todo!()
@@ -26,7 +27,7 @@ impl Bot {
 }
 
 impl Player for Bot {
-    fn get_stone(&self) -> &Stone { &self.stone }
+    fn get_stone(&self) -> Stone { self.stone }
     fn get_name(&self) -> &str { &self.name }
     fn choose_case(&self, board: &Board) -> Move {
         self.next_best_move(board)
