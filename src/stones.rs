@@ -1,5 +1,3 @@
-use std::fmt::{Display, Formatter};
-
 pub type Stone = Option<i8>;
 
 const BLACK: i8 = -1;
@@ -9,8 +7,8 @@ pub const BLACK_STONE: Stone = Some(-1);
 pub const WHITE_STONE: Stone = Some(1);
 pub const EMPTY: Stone = None;
 
-pub const BLACK_STR: char = 'b';
-pub const WHITE_STR: char = 'w';
+// pub const BLACK_STR: char = 'b';
+// pub const WHITE_STR: char = 'w';
 pub const WHITE_STONE_CHAR: &str = "●";
 pub const BLACK_STONE_CHAR: &str = "○";
 pub const EMPTY_CHAR: &str = " ";

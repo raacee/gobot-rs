@@ -1,9 +1,8 @@
 use crate::stones::{get_stone_name_from_stone, Stone};
-use std::fmt::{Display, Error, Formatter, Result};
+use std::fmt::{Display, Formatter, Result};
 use std::hash::Hash;
 use crate::board::Board;
-use crate::game::{Coordinates, Move};
-use std::io::stdin;
+use crate::game::{Move};
 
 pub trait Player {
     fn get_stone(&self) -> Stone;

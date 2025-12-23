@@ -1,7 +1,5 @@
-use std::fmt::{Display, Formatter};
 use crate::stones::{Stone, EMPTY};
 use std::ops::{Index, IndexMut};
-use std::path::Iter;
 use crate::game::Coordinates;
 
 pub type BoardSideLength = usize;
@@ -68,31 +66,5 @@ impl Index<(usize, usize)> for Board
 impl IndexMut<(usize, usize)> for Board{
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Self::Output {
         &mut self.data[x][y]
-    }
-}
-
-pub struct BoardCoordsIterator<'a> {
-    side: &'a BoardSideLength,
-    counter: usize,
-}
-
-impl<'a> BoardCoordsIterator<'a> {
-    pub fn new(side: &BoardSideLength) -> BoardCoordsIterator {
-        BoardCoordsIterator {
-            side,
-            counter:0
-        }
-    }
-}
-
-impl<'a> Iterator for BoardCoordsIterator<'a> {
-    type Item = Coordinates;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.counter > self.side * self.side {
-            None
-        }
-        else {
-            Some((self.counter / self.side, self.counter % self.side))
-        }
     }
 }

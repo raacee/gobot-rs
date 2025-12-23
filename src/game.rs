@@ -1,13 +1,14 @@
-use crate::board::{Board, BoardCoordsIterator, BoardSideLength};
+use crate::board::{Board, BoardSideLength};
 use crate::players::player::Player;
 use crate::signals::*;
 use crate::stones::{
     Stone, BLACK_STONE, BLACK_STONE_CHAR, EMPTY, EMPTY_CHAR, WHITE_STONE, WHITE_STONE_CHAR,
 };
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::fmt::{Display, Error, Formatter};
-use std::ptr::hash;
 use std::rc::Rc;
+
+const KO_LENGTH: usize = 2;
 
 pub type Coordinates = (usize, usize);
 pub type Move = Option<Coordinates>;
@@ -19,7 +20,7 @@ pub type GroupDict = HashMap<&'static str, Group>;
 pub struct Game {
     board_size: BoardSideLength,
     board: Board,
-    last_board: Board,
+    last_boards: [Board; KO_LENGTH],
     players: [Rc<Box<dyn Player>>; 2],
     current_player: usize,
     display: bool,
@@ -37,11 +38,11 @@ impl Game {
         komi: f32,
     ) -> Self {
         let board = Board::new(board_size);
-        let last_board: Board = board.clone();
+        let last_boards = [board.clone(), board.clone()];
         Game {
             board_size,
             board,
-            last_board,
+            last_boards,
             players,
             current_player: 0,
             display,
@@ -54,7 +55,7 @@ impl Game {
     pub fn from(
         board_size: BoardSideLength,
         board: Board,
-        last_board: Board,
+        last_boards: [Board; KO_LENGTH],
         players: [Rc<Box<dyn Player>>; 2],
         display: bool,
         current_player: usize,
@@ -65,7 +66,7 @@ impl Game {
         Game {
             board_size,
             board,
-            last_board,
+            last_boards,
             players,
             current_player,
             display,
@@ -111,7 +112,7 @@ impl Game {
     }
 
     fn check_ko(&self, board: &Board) -> bool {
-        self.board == *board
+        self.last_boards[self.current_player] == *board
     }
 
     pub fn game(&mut self) {
@@ -127,7 +128,6 @@ impl Game {
                     Signals::InducesSuicide
                     | Signals::OccupiedCase
                     | Signals::BreakingKo
-                    | Signals::BreakingSuperKo
                     | Signals::OutsideBounds => println!("{}", e),
 
                     Signals::GameOver | Signals::DoublePass => {
@@ -168,7 +168,8 @@ impl Game {
 
             Some(chosen_coords) => {
                 let board_result = self.verify_player_choice(chosen_coords)?;
-                self.last_board = self.board.clone();
+                self.last_boards[self.current_player] = board_result.clone();
+
                 self.board = board_result;
                 self.last_turned_passed = false;
                 match self.current_player {
@@ -473,12 +474,12 @@ impl Game {
         None
     }
 
-    fn number_stones(&self, s: Stone) -> u8 {
+    fn number_stones(&self, _s: Stone) -> u8 {
         let mut res = 0;
         for row in &self.board.data {
             for stone in row {
                 match stone {
-                    s => res += 1,
+                    _s => res += 1,
                 }
             }
         }
@@ -500,11 +501,11 @@ impl Game {
 }
 
 impl Display for Game {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), Error> {
         // Print the board
         println!("Board ({}x{}):", self.width(), self.height());
         // Print each row with border
-        for (i, row) in self.board.data.iter().enumerate() {
+        for row in self.board.data.iter() {
             // Print each cell in the row
             for cell in row {
                 let c = match *cell {
