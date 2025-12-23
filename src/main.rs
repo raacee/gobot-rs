@@ -18,11 +18,11 @@ fn main() {
     let players: [Rc<Box<dyn Player>>; 2] = [Rc::new(black_player), Rc::new(white_player)];
     let mut game = game::Game::new(
         9,
-        false,
         players,
         true,
         false,
-        7.5);
+        7.5
+    );
 
     game.game()
 }

@@ -13,14 +13,6 @@ const SMALL: BoardSideLength = 9;
 const MEDIUM: BoardSideLength = 13;
 const BIG: BoardSideLength = 19;
 
-const SMALL_SIZE: BoardSize = (SMALL, SMALL);
-const MEDIUM_SIZE: BoardSize = (MEDIUM, MEDIUM);
-const BIG_SIZE: BoardSize = (BIG, BIG);
-
-const SMALL_BOARD: [[Stone; SMALL]; SMALL] = [[None; SMALL]; SMALL];
-const MEDIUM_BOARD: [[Stone; MEDIUM]; MEDIUM] = [[None; MEDIUM]; MEDIUM];
-const BIG_BOARD: [[Stone; BIG]; BIG] =  [[None; BIG]; BIG];
-
 #[derive(Eq, Hash, PartialEq)]
 pub struct Board {
     pub data:BoardArray,
@@ -43,14 +35,6 @@ impl Board {
             board_side_length: side_length,
             shape: (side_length, side_length)
         }
-    }
-
-    pub fn get(&self, (x, y): (usize, usize)) -> &Stone {
-        &self.data[x][y]
-    }
-    
-    pub fn get_board_side_length(&self) -> BoardSideLength {
-        self.board_side_length.clone()
     }
 }
 

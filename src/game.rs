@@ -1,14 +1,13 @@
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::fmt::{Display, Error, Formatter};
-use std::ptr::hash;
-use std::rc::Rc;
 use crate::board::{Board, BoardCoordsIterator, BoardSideLength};
 use crate::players::player::Player;
 use crate::signals::*;
 use crate::stones::{
     Stone, BLACK_STONE, BLACK_STONE_CHAR, EMPTY, EMPTY_CHAR, WHITE_STONE, WHITE_STONE_CHAR,
 };
-
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt::{Display, Error, Formatter};
+use std::ptr::hash;
+use std::rc::Rc;
 
 pub type Coordinates = (usize, usize);
 pub type Move = Option<Coordinates>;
@@ -20,8 +19,7 @@ pub type GroupDict = HashMap<&'static str, Group>;
 pub struct Game {
     board_size: BoardSideLength,
     board: Board,
-    super_ko: bool,
-    last_boards: Vec<Board>,
+    last_board: Board,
     players: [Rc<Box<dyn Player>>; 2],
     current_player: usize,
     display: bool,
@@ -30,22 +28,20 @@ pub struct Game {
     is_over: bool,
 }
 
-impl Game{
+impl Game {
     pub fn new(
         board_size: BoardSideLength,
-        super_ko: bool,
-        players:  [Rc<Box<dyn Player>>; 2],
+        players: [Rc<Box<dyn Player>>; 2],
         display: bool,
         last_turned_passed: bool,
         komi: f32,
     ) -> Self {
         let board = Board::new(board_size);
-        let last_boards = Vec::new();
+        let last_board: Board = board.clone();
         Game {
             board_size,
             board,
-            super_ko,
-            last_boards,
+            last_board,
             players,
             current_player: 0,
             display,
@@ -58,9 +54,8 @@ impl Game{
     pub fn from(
         board_size: BoardSideLength,
         board: Board,
-        super_ko: bool,
-        last_boards: Vec<Board>,
-        players:  [Rc<Box<dyn Player>>; 2],
+        last_board: Board,
+        players: [Rc<Box<dyn Player>>; 2],
         display: bool,
         current_player: usize,
         last_turned_passed: bool,
@@ -70,8 +65,7 @@ impl Game{
         Game {
             board_size,
             board,
-            super_ko,
-            last_boards,
+            last_board,
             players,
             current_player,
             display,
@@ -97,14 +91,19 @@ impl Game{
         &self.board
     }
 
-    pub fn is_over(&self) -> bool { self.is_over }
+    pub fn is_over(&self) -> bool {
+        self.is_over
+    }
 
     pub fn get_current_player(&self) -> &Box<dyn Player> {
-        self.players.get(0).unwrap()
+        self.players.get(self.current_player).unwrap()
     }
 
     fn find_player(&self, stone: Stone) -> &Rc<Box<dyn Player>> {
-        self.players.iter().find(|player| {player.get_stone() == stone}).unwrap()
+        self.players
+            .iter()
+            .find(|player| player.get_stone() == stone)
+            .unwrap()
     }
 
     fn is_case_occupied(&self, (x, y): Coordinates) -> bool {
@@ -112,7 +111,7 @@ impl Game{
     }
 
     fn check_ko(&self, board: &Board) -> bool {
-        self.last_boards.contains(board)
+        self.board == *board
     }
 
     pub fn game(&mut self) {
@@ -124,22 +123,19 @@ impl Game{
 
             match step_result {
                 Ok(()) => continue,
-                Err(e) => {
-                    match e {
-                        Signals::InducesSuicide |
-                        Signals::OccupiedCase |
-                        Signals::BreakingKo |
-                        Signals::BreakingSuperKo |
-                        Signals::OutsideBounds => println!("{}", e),
+                Err(e) => match e {
+                    Signals::InducesSuicide
+                    | Signals::OccupiedCase
+                    | Signals::BreakingKo
+                    | Signals::BreakingSuperKo
+                    | Signals::OutsideBounds => println!("{}", e),
 
-                        Signals::GameOver |
-                        Signals::DoublePass => {
-                            println!("{}", e);
-                            self.is_over = true;
-                            break
-                        },
+                    Signals::GameOver | Signals::DoublePass => {
+                        println!("{}", e);
+                        self.is_over = true;
+                        break;
                     }
-                }
+                },
             }
         }
         let winner = self.winner();
@@ -170,19 +166,17 @@ impl Game{
                 }
             }
 
-            Some (chosen_coords) => {
+            Some(chosen_coords) => {
                 let board_result = self.verify_player_choice(chosen_coords)?;
+                self.last_board = self.board.clone();
+                self.board = board_result;
+                self.last_turned_passed = false;
                 match self.current_player {
                     0 => self.current_player = 1,
                     1 => self.current_player = 0,
                     _ => panic!("Current player count is not in bounds"),
                 }
-                self.board = board_result;
-                self.last_turned_passed = false;
                 Ok(())
-
-
-
             }
         }
     }
@@ -208,21 +202,15 @@ impl Game{
 
         let mut new_board = self.board.clone();
         new_board[player_choice] = self.get_current_player().get_stone();
-        
+
         if induces_capture {
             Self::capture_groups(&mut new_board, captured_groups);
-            if self.last_boards.contains(&new_board){
-                if self.super_ko {
-                    Err(Signals::BreakingSuperKo)
-                } else {
-                    Err(Signals::BreakingKo)
-                }
-            }
-            else {
+            if self.check_ko(&new_board) {
+                Err(Signals::BreakingKo)
+            } else {
                 Ok(new_board)
             }
-        }
-        else {
+        } else {
             Ok(new_board)
         }
     }
@@ -241,7 +229,8 @@ impl Game{
 
     fn captured_groups(&mut self, player_choice: Coordinates) -> Vec<GroupDict> {
         let mut test_board = self.board.clone();
-        test_board[player_choice] = self.get_current_player().get_stone();
+        let player_stone = self.get_current_player().get_stone();
+        test_board[player_choice] = player_stone;
         let neighbors = Self::neighbors_indices(player_choice, &test_board);
         let opposite_stone = Some(self.get_current_player().get_stone().unwrap() * -1);
         let opposite_stone_neighbors_coords: Vec<Coordinates> = neighbors
@@ -249,33 +238,39 @@ impl Game{
             .filter(|&coordinates| test_board[coordinates] == opposite_stone)
             .collect();
 
-        let mut opposite_stone_neighbors_group_dicts: Vec<GroupDict> = opposite_stone_neighbors_coords
-            .into_iter()
-            .map(|coordinates| Self::flood_fill(coordinates, &test_board, true, false))
-            .collect();
+        let mut opposite_stone_neighbors_group_dicts: Vec<GroupDict> =
+            opposite_stone_neighbors_coords
+                .into_iter()
+                .map(|coordinates| Self::flood_fill(coordinates, &test_board, true, false))
+                .collect();
 
         opposite_stone_neighbors_group_dicts
             .iter_mut()
-            .for_each(|group_dict| {Self::mark_capture(group_dict)});
+            .for_each(|group_dict| self.mark_capture(group_dict));
 
         let opposite_stone_captured_groups = opposite_stone_neighbors_group_dicts
             .into_iter()
-            .filter(|group_dict| {group_dict.contains_key("captured")})
+            .filter(|group_dict| group_dict.contains_key("captured"))
             .collect::<Vec<GroupDict>>();
 
         opposite_stone_captured_groups
     }
 
-    fn mark_capture(group_dict: &mut GroupDict) {
-        if group_dict.get("border").unwrap().values().collect::<Vec<&Stone>>().contains(&&&None){
-            group_dict.insert("captured", HashMap::new());
-        }
-        else{
+    fn mark_capture(&self, group_dict: &mut GroupDict) {
+        let player_stone = self.get_current_player().get_stone();
+        if group_dict
+            .get("border")
+            .unwrap()
+            .values()
+            .collect::<Vec<&Stone>>()
+            .iter()
+            .all(|stone_value| **stone_value == player_stone)
+        {
             group_dict.insert("captured", HashMap::new());
         }
     }
 
-    fn capture_groups(board:&mut Board, opposite_stone_neighbors_group_dicts: Vec<GroupDict>) {
+    fn capture_groups(board: &mut Board, opposite_stone_neighbors_group_dicts: Vec<GroupDict>) {
         for group_dict in opposite_stone_neighbors_group_dicts {
             let captured_group = group_dict.get("group").unwrap();
             let captured_group_coords = captured_group.keys();
@@ -303,7 +298,12 @@ impl Game{
         neighbors
     }
 
-    fn flood_fill(coords: Coordinates, board: &Board, add_border: bool, add_empty: bool) -> GroupDict {
+    fn flood_fill(
+        coords: Coordinates,
+        board: &Board,
+        add_border: bool,
+        add_empty: bool,
+    ) -> GroupDict {
         let group: HashMap<Coordinates, Stone> = HashMap::new();
         let border: HashMap<Coordinates, Stone> = HashMap::new();
         let mut group_dict: GroupDict = HashMap::new();
@@ -315,33 +315,39 @@ impl Game{
         queue.push_back(coords);
         while !queue.is_empty() {
             let coords = queue.pop_front().unwrap();
-            if !group_dict["group"].contains_key(&coords)
-                || !group_dict["border"].contains_key(&coords)
+            if group_dict["group"].contains_key(&coords)
+                || group_dict["border"].contains_key(&coords)
             {
+                continue;
+            } else {
                 match board[coords] {
-                    None => {
+                    EMPTY => {
                         if add_empty {
                             group_dict.get_mut("group").unwrap().insert(coords, EMPTY);
                             let neighbors = Self::neighbors_indices(coords, &board);
                             for neighbor in neighbors {
                                 queue.push_back(neighbor);
                             }
-                        }
-                        if add_border {
+                        } else if add_border {
                             group_dict.get_mut("border").unwrap().insert(coords, EMPTY);
                         }
                     }
                     some_stone => {
                         if some_stone == current_stone {
-                            group_dict.get_mut("group").unwrap().insert(coords, some_stone);
+                            group_dict
+                                .get_mut("group")
+                                .unwrap()
+                                .insert(coords, some_stone);
                             let neighbors = Self::neighbors_indices(coords, &board);
                             for neighbor in neighbors {
                                 queue.push_back(neighbor);
                             }
-                        }
-                        else {
+                        } else {
                             if add_border {
-                                group_dict.get_mut("group").unwrap().insert(coords, some_stone);
+                                group_dict
+                                    .get_mut("border")
+                                    .unwrap()
+                                    .insert(coords, some_stone);
                             }
                         }
                     }
@@ -355,11 +361,9 @@ impl Game{
         let scores = self.calculate_scores();
         if scores[&self.players[0]] > scores[&self.players[1]] {
             Some(self.players[0].clone())
-        }
-        else if scores[&self.players[1]] < scores[&self.players[0]] {
+        } else if scores[&self.players[1]] < scores[&self.players[0]] {
             Some(self.players[1].clone())
-        }
-        else {
+        } else {
             None
         }
     }
@@ -384,10 +388,10 @@ impl Game{
         */
         let mut hashmap: HashMap<Rc<Box<dyn Player>>, f32> = HashMap::from([
             (self.players[0].clone(), 0.0),
-            (self.players[1].clone(), self.komi)
+            (self.players[1].clone(), self.komi),
         ]);
 
-        for (i,row) in self.board.data.iter().enumerate() {
+        for (i, row) in self.board.data.iter().enumerate() {
             for (j, cell) in row.iter().enumerate() {
                 match *cell {
                     BLACK_STONE => {
@@ -400,15 +404,13 @@ impl Game{
                         let old_value = hashmap.get(white_player).unwrap();
                         hashmap.insert(white_player.clone(), old_value + 1.0);
                     }
-                    None => {
-                        match self.territory_owner((i,j)) {
-                            Some((player_owner, count)) => {
-                                let old_value = hashmap.get(&player_owner).unwrap();
-                                hashmap.insert(player_owner, old_value + count as f32);
-                            }
-                            _ => continue
+                    None => match self.territory_owner((i, j)) {
+                        Some((player_owner, count)) => {
+                            let old_value = hashmap.get(&player_owner).unwrap();
+                            hashmap.insert(player_owner, old_value + count as f32);
                         }
-                    }
+                        _ => continue,
+                    },
                     _ => {
                         panic!("Value other than -1 or 1 is found in board")
                     }
@@ -422,33 +424,37 @@ impl Game{
         let group_dict = Self::flood_fill(coords, &self.board, true, false);
         let border = group_dict.get("border").unwrap();
 
-        if  border.values().all(|neighbor| *neighbor == BLACK_STONE) {
-            Some((self.find_player(BLACK_STONE).clone(), group_dict.get("group").iter().len()))
-        }
-        else if border.values().all(|neighbor| *neighbor == WHITE_STONE) {
-            Some((self.find_player(WHITE_STONE).clone(), group_dict.get("group").iter().len()))
-        }
-        else {
+        if border.values().all(|neighbor| *neighbor == BLACK_STONE) {
+            Some((
+                self.find_player(BLACK_STONE).clone(),
+                group_dict.get("group").iter().len(),
+            ))
+        } else if border.values().all(|neighbor| *neighbor == WHITE_STONE) {
+            Some((
+                self.find_player(WHITE_STONE).clone(),
+                group_dict.get("group").iter().len(),
+            ))
+        } else {
             None
         }
-
     }
 
-    fn eye_owner(&self, coords:Coordinates) -> Option<Stone> {
+    fn eye_owner(&self, coords: Coordinates) -> Option<Stone> {
         let neighbors = Self::neighbors_indices(coords, &self.board);
-        let neighbors: Vec<Stone> = neighbors.into_iter().map(|neighbor_coord| self.board[neighbor_coord]).collect();
-        if  neighbors.iter().all(|neighbor| *neighbor == BLACK_STONE) {
+        let neighbors: Vec<Stone> = neighbors
+            .into_iter()
+            .map(|neighbor_coord| self.board[neighbor_coord])
+            .collect();
+        if neighbors.iter().all(|neighbor| *neighbor == BLACK_STONE) {
             Some(BLACK_STONE)
-        }
-        else if neighbors.iter().all(|neighbor| *neighbor == WHITE_STONE) {
+        } else if neighbors.iter().all(|neighbor| *neighbor == WHITE_STONE) {
             Some(WHITE_STONE)
-        }
-        else {
+        } else {
             None
         }
     }
 
-    fn group_owner(&self, coords:Coordinates) -> Option<Rc<Box<dyn Player>>> {
+    fn group_owner(&self, coords: Coordinates) -> Option<Rc<Box<dyn Player>>> {
         let group_dict = Self::flood_fill(coords, &self.board, false, true);
         let group = &group_dict["group"];
         let mut n_eyes: u8 = 0;
@@ -472,7 +478,7 @@ impl Game{
         for row in &self.board.data {
             for stone in row {
                 match stone {
-                    s => res += 1
+                    s => res += 1,
                 }
             }
         }
@@ -483,8 +489,8 @@ impl Game{
         let mut available_cases: Vec<Move> = vec![];
         for i in 0..self.board_size {
             for j in 0..self.board_size {
-                if self.eye_owner((i,j)).unwrap() == player.get_stone() {
-                    available_cases.push(Some((i,j)));
+                if self.eye_owner((i, j)).unwrap() == player.get_stone() {
+                    available_cases.push(Some((i, j)));
                 }
             }
         }
@@ -516,7 +522,6 @@ impl Display for Game {
         println!("Players: {} vs {}", self.players[0], self.players[1]);
 
         // Print other game info
-        println!("Super Ko: {}", self.super_ko);
         println!("Komi: {}", self.komi);
         println!("Last turn passed: {}", self.last_turned_passed);
 

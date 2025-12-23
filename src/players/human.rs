@@ -12,6 +12,9 @@ pub struct Human {
 
 impl Human {
     pub fn new(stone: Stone) -> Human {
+        if stone.is_none() {
+            panic!("Player stone is EMPTY")
+        }
         Human {
             stone,
             name: get_stone_name_from_stone(stone),
@@ -19,7 +22,7 @@ impl Human {
     }
 }
 
-impl  Human {
+impl Human {
     fn get_user_input(&self) -> String {
         let mut input = String::new();
         let stdin = std::io::stdin();
