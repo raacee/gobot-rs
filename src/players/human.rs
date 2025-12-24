@@ -21,7 +21,7 @@ impl Human {
 }
 
 impl Human {
-    fn get_user_input(&self) -> String {
+    fn get_user_input() -> String {
         let mut input = String::new();
         let stdin = std::io::stdin();
         let choice_result = stdin.read_line(&mut input);
@@ -43,19 +43,20 @@ impl Player for Human {
     }
 
     fn choose_case(&self, board: &Board) -> Move {
-        let mut user_input = self.get_user_input();
-        let choice = user_input
+        let mut user_input = Self::get_user_input();
+        let choice: Vec<&str> = user_input
             .trim()
-            .split(' ')
-            .map(|c| c.parse::<usize>().unwrap()).collect::<Vec<usize>>();
+            .split(' ').collect();
+        println!("{}", choice.len());
         match choice.len() {
-            0 =>{
+            0 | 1 =>{
                 let res = None;
                 user_input.clear();
                 res
             }
             2 => {
-                let res = Some((choice[0], choice[1]));
+                let choice_coords = choice.into_iter().map(|c| c.parse::<usize>().unwrap()).collect::<Vec<usize>>();
+                let res = Some((choice_coords[0], choice_coords[1]));
                 user_input.clear();
                 res
             }
