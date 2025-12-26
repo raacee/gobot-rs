@@ -47,7 +47,6 @@ impl Player for Human {
         let choice: Vec<&str> = user_input
             .trim()
             .split(' ').collect();
-        println!("{}", choice.len());
         match choice.len() {
             0 | 1 =>{
                 let res = None;

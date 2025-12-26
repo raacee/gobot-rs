@@ -1,14 +1,24 @@
+use rand::prelude::IndexedRandom;
 use crate::board::Board;
 use crate::game::Move;
+use crate::mcts::Tree;
 use crate::players::player::Player;
-use crate::stones::Stone;
+use crate::stones::{get_stone_name_from_stone, Stone};
+
 
 pub struct Bot {
     name: String,
-    stone: Stone
+    stone: Stone,
 }
 
 impl Bot {
+    pub fn new(stone: Stone) -> Bot {
+        Bot {
+            name: get_stone_name_from_stone(stone).to_string(),
+            stone
+        }
+    }
+
     /*
         With area scoring, the bots should continue playing unless playing leads to a situation where a group loses an eye
         In that case, the bot should pass

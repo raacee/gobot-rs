@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(PartialEq)]
 pub enum Signals {
     InducesSuicide,
     OccupiedCase,

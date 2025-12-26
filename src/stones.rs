@@ -1,10 +1,10 @@
-pub type Stone = Option<i8>;
+pub type Stone = Option<bool>;
 
-const BLACK: i8 = -1;
-const WHITE: i8 = 1;
+const BLACK: bool = false;
+const WHITE: bool = true;
 
-pub const BLACK_STONE: Stone = Some(-1);
-pub const WHITE_STONE: Stone = Some(1);
+pub const BLACK_STONE: Stone = Some(BLACK);
+pub const WHITE_STONE: Stone = Some(WHITE);
 pub const EMPTY: Stone = None;
 
 // pub const BLACK_STR: char = 'b';
