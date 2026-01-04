@@ -1,5 +1,5 @@
 use crate::board::Board;
-use crate::game::Move;
+use crate::game::{Game, Move};
 use crate::players::player::Player;
 use crate::stones::{get_stone_name_from_stone, Stone};
 
@@ -42,7 +42,7 @@ impl Player for Human {
         self.stone
     }
 
-    fn choose_case(&self, board: &Board) -> Move {
+    fn choose_case(&self, game: &Game) -> Move {
         let mut user_input = Self::get_user_input();
         let choice: Vec<&str> = user_input
             .trim()

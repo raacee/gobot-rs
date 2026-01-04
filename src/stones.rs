@@ -1,7 +1,9 @@
 pub type Stone = Option<bool>;
 
-const BLACK: bool = false;
-const WHITE: bool = true;
+pub type StoneColor = bool;
+
+const BLACK: StoneColor = false;
+const WHITE: StoneColor = true;
 
 pub const BLACK_STONE: Stone = Some(BLACK);
 pub const WHITE_STONE: Stone = Some(WHITE);

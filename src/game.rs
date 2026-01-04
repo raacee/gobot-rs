@@ -7,6 +7,7 @@ use crate::stones::{
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Display, Error, Formatter};
 use std::rc::Rc;
+use crate::players::human::Human;
 
 const KO_LENGTH: usize = 2;
 
@@ -16,7 +17,7 @@ pub type Move = Option<Coordinates>;
 pub type Group = HashMap<Coordinates, Stone>;
 pub type GroupDict = HashMap<&'static str, Group>;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Game {
     board_size: usize,
     board: Board,
@@ -94,15 +95,15 @@ impl Game {
     }
 
     pub fn get_current_player(&self) -> Rc<Box<dyn Player>> {
-        self.players[self.current_player].clone()
+        Rc::clone(&self.players[self.current_player])
     }
 
     fn find_player(&self, stone: Stone) -> Rc<Box<dyn Player>> {
-        self.players
+        Rc::clone(self.players
             .iter()
             .find(|player| player.get_stone() == stone)
             .unwrap()
-            .clone()
+        )
     }
 
     fn is_case_occupied(&self, (x, y): Coordinates) -> bool {
@@ -119,7 +120,7 @@ impl Game {
         }
         loop {
             let current_player = self.get_current_player();
-            let current_player_choice = current_player.choose_case(&self.board);
+            let current_player_choice = current_player.choose_case(&self);
             let step_result = self.step(current_player_choice);
 
             match step_result {
@@ -385,6 +386,8 @@ impl Game {
 
     pub fn winner(&self) -> Option<Rc<Box<dyn Player>>> {
         let scores = self.calculate_scores();
+        println!("Black score : {}", scores[&BLACK_STONE]);
+        println!("White score : {}", scores[&WHITE_STONE]);
         if scores[&BLACK_STONE] > scores[&WHITE_STONE] {
             Some(self.find_player(BLACK_STONE))
         } else if scores[&WHITE_STONE] > scores[&BLACK_STONE] {
@@ -452,15 +455,14 @@ impl Game {
 
         let group_dict = Self::flood_fill(coords, &self.board, true, false);
         let border = group_dict.get("border").unwrap();
-
         if border.values().all(|neighbor| *neighbor == BLACK_STONE) {
             Some((
-                self.find_player(BLACK_STONE).clone(),
+                Rc::clone(&self.find_player(BLACK_STONE)),
                 group_dict.get("group").iter().len(),
             ))
         } else if border.values().all(|neighbor| *neighbor == WHITE_STONE) {
             Some((
-                self.find_player(WHITE_STONE).clone(),
+                Rc::clone(&self.find_player(WHITE_STONE)),
                 group_dict.get("group").iter().len(),
             ))
         } else {
@@ -561,5 +563,21 @@ impl Display for Game {
             println!("|");
         }
         Ok(())
+    }
+}
+
+impl Default for Game {
+    fn default() -> Self {
+        Game {
+            board_size:SIDE,
+            board:Board::default(),
+            last_boards: [Board::default(), Board::default()],
+            players: [Rc::new(Box::new(Human::new(BLACK_STONE))), Rc::new(Box::new(Human::new(WHITE_STONE)))],
+            current_player: 0,
+            display: true,
+            last_turned_passed: false,
+            komi:7.5,
+            is_over: false,
+        }
     }
 }

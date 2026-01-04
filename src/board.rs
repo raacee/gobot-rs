@@ -36,3 +36,9 @@ impl IndexMut<(usize, usize)> for Board{
         &mut self.data[x][y]
     }
 }
+
+impl Default for Board {
+    fn default() -> Self {
+        Self::new()
+    }
+}

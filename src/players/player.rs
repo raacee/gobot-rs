@@ -2,14 +2,14 @@ use crate::stones::{get_stone_name_from_stone, Stone};
 use std::fmt::{Display, Formatter, Result};
 use std::hash::Hash;
 use crate::board::Board;
-use crate::game::{Move};
+use crate::game::{Game, Move};
 
 pub trait Player {
     fn get_stone(&self) -> Stone;
     fn get_name(&self) -> &str {
         get_stone_name_from_stone(self.get_stone())
     }
-    fn choose_case(&self, board: &Board) -> Move;
+    fn choose_case(&self, game: &Game) -> Move;
 }
 
 impl Display for dyn Player {
